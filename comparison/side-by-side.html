@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAI vs RTAV WebRTC Comparison</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #fff;
+        }
+
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #3a3a3a;
+        }
+
+        .panel h2 {
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .panel.openai h2 {
+            color: #10a37f;
+        }
+
+        .panel.rtav h2 {
+            color: #4a9eff;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #3a8eef;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .openai button {
+            background: #10a37f;
+        }
+
+        .openai button:hover {
+            background: #0f936f;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .status.disconnected {
+            background: #4a2a2a;
+            color: #ff6b6b;
+        }
+
+        .status.connecting {
+            background: #4a4a2a;
+            color: #ffd93d;
+        }
+
+        .status.connected {
+            background: #2a4a2a;
+            color: #6bcf7f;
+        }
+
+        .log {
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 5px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .log-entry.info {
+            color: #6bcf7f;
+        }
+
+        .log-entry.error {
+            color: #ff6b6b;
+        }
+
+        .log-entry.event {
+            color: #4a9eff;
+        }
+
+        .video-container {
+            margin-top: 20px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 5px;
+            padding: 10px;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-container video {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 5px;
+        }
+
+        .video-frames {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .video-frames img {
+            max-width: 150px;
+            max-height: 150px;
+            border-radius: 5px;
+            border: 1px solid #3a3a3a;
+        }
+
+        .config {
+            margin-bottom: 20px;
+        }
+
+        .config label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .config input {
+            width: 100%;
+            padding: 8px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 5px;
+            color: #e0e0e0;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .comparison {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OpenAI vs RTAV WebRTC Comparison</h1>
+        
+        <div class="comparison">
+            <!-- OpenAI Panel -->
+            <div class="panel openai">
+                <h2>OpenAI Realtime API</h2>
+                
+                <div class="config">
+                    <label>API Key:</label>
+                    <input type="password" id="openai-key" placeholder="sk-...">
+                    <label>Model:</label>
+                    <input type="text" id="openai-model" value="gpt-realtime" placeholder="gpt-realtime">
+                </div>
+
+                <div class="controls">
+                    <button id="openai-connect">Connect</button>
+                    <button id="openai-send" disabled>Send Message</button>
+                    <button id="openai-disconnect" disabled>Disconnect</button>
+                </div>
+
+                <div class="status disconnected" id="openai-status">Disconnected</div>
+
+                <div class="log" id="openai-log"></div>
+            </div>
+
+            <!-- RTAV Panel -->
+            <div class="panel rtav">
+                <h2>RTAV Realtime API</h2>
+                
+                <div class="config">
+                    <label>API Key:</label>
+                    <input type="password" id="rtav-key" placeholder="rtav_ak_... or ek_...">
+                    <small style="color: #888; display: block; margin-top: 4px;">
+                        Use your RTAV API key (rtav_ak_...) or ephemeral key (ek_...)
+                    </small>
+                    <label>Model:</label>
+                    <input type="text" id="rtav-model" value="gpt-5.2" placeholder="gpt-5.2">
+                    <label>Face ID (optional):</label>
+                    <input type="text" id="rtav-face" placeholder="default">
+                    <label>Voice ID (optional):</label>
+                    <input type="text" id="rtav-voice" placeholder="default">
+                </div>
+
+                <div class="controls">
+                    <button id="rtav-connect">Connect</button>
+                    <button id="rtav-send" disabled>Send Message</button>
+                    <button id="rtav-disconnect" disabled>Disconnect</button>
+                </div>
+
+                <div class="status disconnected" id="rtav-status">Disconnected</div>
+
+                <div class="log" id="rtav-log"></div>
+
+                <div class="video-container" id="rtav-video">
+                    <div style="color: #666;">Video frames will appear here</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // OpenAI WebRTC Handler
+        let openaiPC = null;
+        let openaiDataChannel = null;
+
+        function openaiLog(message, type = 'info') {
+            const log = document.getElementById('openai-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateOpenAIStatus(status) {
+            const statusEl = document.getElementById('openai-status');
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        document.getElementById('openai-connect').addEventListener('click', async () => {
+            const apiKey = document.getElementById('openai-key').value.trim();
+            const model = document.getElementById('openai-model').value.trim() || 'gpt-realtime';
+
+            if (!apiKey) {
+                alert('Please enter OpenAI API key');
+                openaiLog('Error: API key is required', 'error');
+                return;
+            }
+
+            if (!apiKey.startsWith('sk-')) {
+                openaiLog('Warning: API key should start with "sk-"', 'info');
+            }
+
+            try {
+                updateOpenAIStatus('connecting');
+                openaiLog('Creating WebRTC connection...', 'info');
+
+                openaiPC = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                openaiDataChannel = openaiPC.createDataChannel('realtime', { ordered: true });
+
+                openaiDataChannel.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        openaiLog(`Event: ${data.type}`, 'event');
+                        
+                        if (data.type === 'session.created') {
+                            openaiLog(`Session ID: ${data.session?.id}`, 'info');
+                        }
+                        
+                        if (data.type === 'response.output_text.delta' || data.type === 'response.text.delta') {
+                            openaiLog(`Text: ${data.delta}`, 'info');
+                        }
+                    } catch (e) {
+                        openaiLog(`Error: ${e.message}`, 'error');
+                    }
+                };
+
+                openaiDataChannel.onopen = () => {
+                    openaiLog('Data channel opened', 'info');
+                    updateOpenAIStatus('connected');
+                    document.getElementById('openai-send').disabled = false;
+                    document.getElementById('openai-disconnect').disabled = false;
+                    document.getElementById('openai-connect').disabled = true;
+                };
+
+                openaiPC.onconnectionstatechange = () => {
+                    openaiLog(`Connection state: ${openaiPC.connectionState}`, 'info');
+                    if (openaiPC.connectionState === 'disconnected' || openaiPC.connectionState === 'failed') {
+                        updateOpenAIStatus('disconnected');
+                        document.getElementById('openai-send').disabled = true;
+                        document.getElementById('openai-disconnect').disabled = true;
+                        document.getElementById('openai-connect').disabled = false;
+                    }
+                };
+
+                // Add audio transceiver to ensure SDP offer has audio media section
+                // OpenAI requires an audio media section in the SDP offer
+                try {
+                    openaiPC.addTransceiver('audio', { direction: 'sendrecv' });
+                    openaiLog('Added audio transceiver', 'info');
+                } catch (error) {
+                    openaiLog(`Warning: Could not add audio transceiver: ${error.message}`, 'info');
+                }
+
+                const offer = await openaiPC.createOffer();
+                await openaiPC.setLocalDescription(offer);
+
+                const formData = new FormData();
+                formData.append('sdp', openaiPC.localDescription.sdp);
+                // Note: OpenAI uses nested audio.output.voice structure
+                formData.append('session', JSON.stringify({
+                    type: 'realtime',
+                    model: model,
+                    instructions: 'You are a helpful assistant.',
+                    audio: {
+                        output: {
+                            voice: 'alloy'
+                        }
+                    }
+                }));
+
+                // Ensure API key is set
+                if (!apiKey || !apiKey.trim()) {
+                    throw new Error('API key is required');
+                }
+
+                const response = await fetch('https://api.openai.com/v1/realtime/calls', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey.trim()}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to create call: ${response.status} ${errorText}`);
+                }
+
+                const answerSdp = await response.text();
+                await openaiPC.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answerSdp
+                });
+
+                openaiLog('SDP answer received', 'info');
+
+            } catch (error) {
+                openaiLog(`Error: ${error.message}`, 'error');
+                updateOpenAIStatus('disconnected');
+            }
+        });
+
+        document.getElementById('openai-send').addEventListener('click', () => {
+            if (openaiDataChannel && openaiDataChannel.readyState === 'open') {
+                openaiDataChannel.send(JSON.stringify({
+                    type: 'conversation.item.create',
+                    item: {
+                        type: 'message',
+                        role: 'user',
+                        content: [{
+                            type: 'input_text',
+                            text: 'Hello! Say "Hello from OpenAI"'
+                        }]
+                    }
+                }));
+                openaiDataChannel.send(JSON.stringify({
+                    type: 'response.create'
+                }));
+                openaiLog('Message sent', 'info');
+            }
+        });
+
+        document.getElementById('openai-disconnect').addEventListener('click', () => {
+            if (openaiPC) {
+                openaiPC.close();
+                openaiPC = null;
+                openaiDataChannel = null;
+                updateOpenAIStatus('disconnected');
+                document.getElementById('openai-send').disabled = true;
+                document.getElementById('openai-disconnect').disabled = true;
+                document.getElementById('openai-connect').disabled = false;
+            }
+        });
+
+        // RTAV WebRTC Handler
+        let rtavPC = null;
+        let rtavDataChannel = null;
+        let rtavVideoFrames = [];
+
+        function rtavLog(message, type = 'info') {
+            const log = document.getElementById('rtav-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateRTAVStatus(status) {
+            const statusEl = document.getElementById('rtav-status');
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        function addVideoFrame(base64Data) {
+            const container = document.getElementById('rtav-video');
+            
+            // Remove placeholder text if present
+            const placeholder = container.querySelector('div[style*="color: #666"]');
+            if (placeholder) {
+                container.innerHTML = '';
+            }
+            
+            // Get or create the single image element
+            let img = container.querySelector('img');
+            if (!img) {
+                img = document.createElement('img');
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '400px';
+                img.style.borderRadius = '8px';
+                img.style.border = '1px solid #3a3a3a';
+                container.appendChild(img);
+            }
+            
+            // Replace the image source with the new frame
+            img.src = `data:image/jpeg;base64,${base64Data}`;
+        }
+
+        document.getElementById('rtav-connect').addEventListener('click', async () => {
+            const apiKey = document.getElementById('rtav-key').value.trim();
+            const model = document.getElementById('rtav-model').value.trim() || 'gpt-5.2';
+            const face = document.getElementById('rtav-face').value.trim() || 'default';
+            const voice = document.getElementById('rtav-voice').value.trim() || 'default';
+            
+            // Get API URL from server (falls back to default if server doesn't provide it)
+            let apiUrl = 'https://api.rtav.io';
+            try {
+                const apiUrlResponse = await fetch('/api-url');
+                if (apiUrlResponse.ok) {
+                    const apiUrlData = await apiUrlResponse.json();
+                    apiUrl = apiUrlData.apiUrl || apiUrl;
+                    rtavLog(`Using API URL: ${apiUrl}`, 'info');
+                }
+            } catch (error) {
+                rtavLog(`Using default API URL: ${apiUrl}`, 'info');
+            }
+
+            if (!apiKey) {
+                alert('Please enter RTAV API key');
+                rtavLog('Error: API key is required', 'error');
+                return;
+            }
+
+            // Log API key format for debugging (first few chars only)
+            const keyPrefix = apiKey.substring(0, 3);
+            rtavLog(`Using API key format: ${keyPrefix}...`, 'info');
+
+            try {
+                updateRTAVStatus('connecting');
+                rtavLog('Creating WebRTC connection...', 'info');
+
+                rtavPC = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                rtavDataChannel = rtavPC.createDataChannel('realtime', { ordered: true });
+
+                rtavDataChannel.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        rtavLog(`Event: ${data.type}`, 'event');
+                        
+                        if (data.type === 'session.created') {
+                            rtavLog(`Session ID: ${data.session?.id}`, 'info');
+                        }
+                        
+                        if (data.type === 'response.output_text.delta' || data.type === 'response.text.delta') {
+                            rtavLog(`Text: ${data.delta}`, 'info');
+                        }
+                        
+                        // Handle video frames (RTAV only)
+                        if (data.type === 'response.output_image.delta' || data.type === 'response.image.delta') {
+                            if (data.delta) {
+                                addVideoFrame(data.delta);
+                                rtavLog('Video frame received', 'info');
+                            }
+                        }
+                    } catch (e) {
+                        rtavLog(`Error: ${e.message}`, 'error');
+                    }
+                };
+
+                rtavDataChannel.onopen = () => {
+                    rtavLog('Data channel opened', 'info');
+                    updateRTAVStatus('connected');
+                    document.getElementById('rtav-send').disabled = false;
+                    document.getElementById('rtav-disconnect').disabled = false;
+                    document.getElementById('rtav-connect').disabled = true;
+                };
+
+                rtavPC.onconnectionstatechange = () => {
+                    rtavLog(`Connection state: ${rtavPC.connectionState}`, 'info');
+                    if (rtavPC.connectionState === 'disconnected' || rtavPC.connectionState === 'failed') {
+                        updateRTAVStatus('disconnected');
+                        document.getElementById('rtav-send').disabled = true;
+                        document.getElementById('rtav-disconnect').disabled = true;
+                        document.getElementById('rtav-connect').disabled = false;
+                    }
+                };
+
+                const offer = await rtavPC.createOffer();
+                await rtavPC.setLocalDescription(offer);
+
+                const formData = new FormData();
+                formData.append('sdp', rtavPC.localDescription.sdp);
+                formData.append('session', JSON.stringify({
+                    type: 'realtime',
+                    model: model,
+                    instructions: 'You are a helpful assistant.',
+                    voice: voice,
+                    face: face,
+                    modalities: ['audio', 'text', 'image']
+                }));
+
+                // Ensure API key is set
+                if (!apiKey || !apiKey.trim()) {
+                    throw new Error('API key is required');
+                }
+
+                // Use proxy endpoint if API URL is localhost/private IP (to avoid browser certificate issues)
+                const parsedApiUrl = new URL(apiUrl);
+                const isLocalhostOrPrivateIp = (
+                    parsedApiUrl.hostname === 'localhost' ||
+                    parsedApiUrl.hostname === '127.0.0.1' ||
+                    parsedApiUrl.hostname === '::1' ||
+                    (parsedApiUrl.hostname && (
+                        parsedApiUrl.hostname.startsWith('192.168.') ||
+                        parsedApiUrl.hostname.startsWith('10.') ||
+                        (parsedApiUrl.hostname.startsWith('172.') &&
+                            parseInt(parsedApiUrl.hostname.split('.')[1] || '0') >= 16 &&
+                            parseInt(parsedApiUrl.hostname.split('.')[1] || '0') <= 31)
+                    ))
+                );
+                
+                const fetchUrl = isLocalhostOrPrivateIp 
+                    ? `/proxy/v1/realtime/calls`  // Use proxy to avoid browser certificate issues
+                    : `${apiUrl}/v1/realtime/calls`;  // Direct call for production
+
+                const response = await fetch(fetchUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey.trim()}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to create call: ${response.status} ${errorText}`);
+                }
+
+                const answerSdp = await response.text();
+                await rtavPC.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answerSdp
+                });
+
+                rtavLog('SDP answer received', 'info');
+
+            } catch (error) {
+                rtavLog(`Error: ${error.message}`, 'error');
+                updateRTAVStatus('disconnected');
+            }
+        });
+
+        document.getElementById('rtav-send').addEventListener('click', () => {
+            if (rtavDataChannel && rtavDataChannel.readyState === 'open') {
+                rtavDataChannel.send(JSON.stringify({
+                    type: 'conversation.item.create',
+                    item: {
+                        type: 'message',
+                        role: 'user',
+                        content: [{
+                            type: 'input_text',
+                            text: 'Hello! Say "Hello from RTAV" and show me your avatar'
+                        }]
+                    }
+                }));
+                rtavDataChannel.send(JSON.stringify({
+                    type: 'response.create'
+                }));
+                rtavLog('Message sent', 'info');
+            }
+        });
+
+        document.getElementById('rtav-disconnect').addEventListener('click', () => {
+            if (rtavPC) {
+                rtavPC.close();
+                rtavPC = null;
+                rtavDataChannel = null;
+                updateRTAVStatus('disconnected');
+                document.getElementById('rtav-send').disabled = true;
+                document.getElementById('rtav-disconnect').disabled = true;
+                document.getElementById('rtav-connect').disabled = false;
+                document.getElementById('rtav-video').innerHTML = '<div style="color: #666;">Video frames will appear here</div>';
+            }
+        });
+    </script>
+</body>
+</html>
